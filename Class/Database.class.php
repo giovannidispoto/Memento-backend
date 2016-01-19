@@ -12,13 +12,13 @@
         private $username = '';
         private $password = '';
         private $conn;
-        private $salt= "mementoauderesemper"; //salt da aggiungere alle password, prima di calcolare il digest
+        private $salt = "mementoauderesemper"; //salt da aggiungere alle password, prima di calcolare il digest
 
 
       public function connect($dbname){ //funzione per connessione al database
               try{
                 $this->conn = new MongoClient();
-                $db = $this->conn->selectDB('$db');
+                $db = $this->conn->selectDB($dbname);
               }catch(MongoConnectionException $e){
                 die('An Error occured<br>'.$e);
               }
@@ -28,23 +28,26 @@
         public function authUser($username, $password){ //autenticazione
           $user = array(
             '_id' => $username,
-            'password' => hash("sha512",$password.$salt)
+            'password' => hash("sha512",$password.$this->salt)
           );
           try{
-                $db = connect('login');
-                $res = $db->find($user)->count();
+                $db = $this->connect('login');
+                $res = $db->login->find($user)->count();
             }catch(MongoException $e){
               die("An error occured.<br>".$e->getMessage());
             }
-            $res = MongoUtilities::cursor_to_array($res); //trasformo il cursore MongoDB ottenuto in un array associativo
-            return $res;
+            if($res == 0) return false;
+
+            $user = $this->findUser($username);
+
+            return $user;
         }
 
         public function getUsers(){
 
           try{
-            $db = connect('users');
-            $res = $db->find();
+            $db = $this->connect('users');
+            $res = $db->users->find();
           }catch(MongoException $e){
             die("An error occured.<br>".$e->getMessage());
           }
@@ -53,28 +56,28 @@
           return $users;
         }
 
-        public function insertMedia($media, $user_id){ //funzione per inserire i media nel db
+        public function insertMedia($media, $fileName, $user_id){ //funzione per inserire i media nel db
             try{
-                  $db = connect('media');
-                  $gridFs = $db->getGridFs(); //utilizzo il gridFs per salvare i dati binari
+                  $db = $this->connect('media');
+                  $gridFs = $db->media->getGridFs(); //utilizzo il gridFs per salvare i dati binari
                   $path = "/tmp/"; //percorso dei media
                   $storedFile = $gridFs->storeFile(
                   $path.$fileName,
                   array("metadata" => array("user" => $user_id, "date" => time())),
-                  array("filename" => $filename)
+                  array("filename" => $fileName)
                 );
             }catch(MongoException $e){
               die("An Error occured<br>".$e);
             }
-            $res = MongoUtilities::cursor_to_array($res);
+            $res = MongoUtilities::cursor_to_array($storedFile);
             if($res['ok'] == 1) return true;
             else return false;
         }
 
         public function findUser($username){
-          $db = connect('users');
+          $db = $this->connect('users');
           try{
-            $res = $db->find(array("username" => $username));
+            $res = $db->users->find(array("_id" => $username));
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
           }
@@ -84,8 +87,8 @@
 
         public function getMedia($user_id){
             try{
-                $db = connect("media");
-                $res = $db->find(array("user" => $user_id));
+                $db = $this->connect("media");
+                $res = $db->media->find(array("user" => $user_id));
             }catch(MongoException $e){
               die("An Error Occured<br>".$e->getMessage());
             }
@@ -102,9 +105,9 @@
             "date_of_birth" => $date_of_birth,
             "sex" => $sex
           );
-          $db = connect('users');
+          $db = $this->connect('users');
           try{
-            $res = $db->save($user);
+            $res = $db->users->insert($user);
 
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
@@ -112,11 +115,11 @@
 
           $user_credential = array(
             "_id" => $username,
-            "password" => hash("sha512",$password.$salt)
+            "password" => hash("sha512",$password.$this->salt)
           );
-          $db = connect('login');
+          $db = $this->connect('login');
           try{
-              $res = $db->save($user);
+              $res = $db->login->insert($user_credential);
           }catch(MongoException $e){
               die("An Error Occured<br>".$e->getMessage());
           }
