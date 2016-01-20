@@ -6,7 +6,7 @@
  * Date: 20/01/16
  * Time: 15:08
  */
-require_once("Database.class.php");
+require_once("../Class/Database.class.php");
 
 class TestDatabase extends PHPUnit_Framework_TestCase
 {
