@@ -1,9 +1,12 @@
 <?php
-          function my_autoload($class){
-              require_once("Class/$class.class.php");
-          }
+        require_once("PHPUnit/Autoload.php");
+        require_once("MongoUtilities.class.php");
 
-          spl_autoload_register('my_autoload');
+//          function my_autoload($class){
+//              require_once("$class.class.php");
+//          }
+//
+//          spl_autoload_register('my_autoload');
 
     class Database{
 
@@ -40,7 +43,8 @@
 
             $user = $this->findUser($username);
 
-            return $user;
+            return $res;
+            //return $user;
         }
 
         public function getUsers(){
@@ -56,15 +60,15 @@
           return $users;
         }
 
-        public function insertMedia($media, $fileName, $user_id){ //funzione per inserire i media nel db
+        public function insertMedia($media, $user_id){ //funzione per inserire i media nel db
             try{
                   $db = $this->connect('media');
                   $gridFs = $db->media->getGridFs(); //utilizzo il gridFs per salvare i dati binari
                   $path = "/tmp/"; //percorso dei media
                   $storedFile = $gridFs->storeFile(
-                  $path.$fileName,
+                  $path.$media,
                   array("metadata" => array("user" => $user_id, "date" => time())),
-                  array("filename" => $fileName)
+                  array("filename" => $media)
                 );
             }catch(MongoException $e){
               die("An Error occured<br>".$e);
@@ -81,8 +85,20 @@
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
           }
-          $res = MongoUtilities::cursor_to_array($res);
-            return $res;
+            return true;
+        }
+
+        public function dropUser($username){
+            $db = $this->connect('users');
+            $db_login = $this->connect('login');
+            try{
+                $res = $db->users->drop(array("_id" => $username));
+                $res = $db_login->login->drop(array("_id" => $username));
+            }catch(MongoException $e){
+                die("An Error occured<br>".$e);
+            }
+
+            return true;
         }
 
         public function getMedia($user_id){
@@ -125,5 +141,7 @@
           }
           return true;
         }
+
     }
+
  ?>
