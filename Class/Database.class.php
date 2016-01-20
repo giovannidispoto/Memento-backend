@@ -142,6 +142,28 @@
           return true;
         }
 
+        public function insertComment($user_id,$comment,$media_id){
+            try {
+                $db = $this->connect('media');
+                $res = $db->media->update(array("_id" => $media_id),array('push' => array("user" => $user_id,"comment" => $comment)));
+            }catch(MongoException $e){
+                die("An Error Occured<br>".$e->getMessage());
+            }
+            return $res;
+
+        }
+
+        public function insertLike($user_id,$media_id){
+            try{
+                $db = $this->connect('media');
+                $res = $db->media->update(array("_id" => $media_id),array('$push'=>array("like" => $user_id)));
+            }catch(MongoException $e){
+                die("An Error Occured<br>".$e->getMessage());
+            }
+
+            return $res;
+        }
+
     }
 
  ?>
