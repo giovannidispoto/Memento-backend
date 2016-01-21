@@ -9,6 +9,14 @@
         if(isset($_REQUEST['user']) && !empty($_REQUEST['user'])){
             if(isset($_GET['action']) && !empty($_GET['action'])){
                 switch($_GET['action']){
+                    case 'insert_media':
+                                        if(isset($_POST['media'])){
+
+                                        }else{
+                                            $user_id = $_COOKIE['id'];
+                                            include App::view("send_file");
+                                        }
+                                        break;
                   default:
                             echo "Your request: ".$_GET['action']." for ".$_GET['user'];
                             break;
@@ -19,6 +27,7 @@
         }
 
     }else{
+
       if(isset($_REQUEST['username']) && !empty($_REQUEST['username'])){
               if(isset($_GET['action'])){
 

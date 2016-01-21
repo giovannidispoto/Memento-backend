@@ -85,7 +85,7 @@
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
           }
-            return true;
+            return MongoUtilities::cursor_to_array($res);
         }
 
         public function dropUser($username){
@@ -123,7 +123,7 @@
           );
           $db = $this->connect('users');
           try{
-            $res = $db->users->insert($user);
+            $user = $db->users->insert($user);
 
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
@@ -139,7 +139,7 @@
           }catch(MongoException $e){
               die("An Error Occured<br>".$e->getMessage());
           }
-          return true;
+            return true;
         }
 
         public function insertComment($user_id,$comment,$media_id){
