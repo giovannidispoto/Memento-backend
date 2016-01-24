@@ -74,6 +74,30 @@ class TestDatabase extends PHPUnit_Framework_TestCase
                 $this->assertEquals($res,0);
             }
 
+            public function testInsertPhoto(){
+              $db = new Database();
+                $res1 = $db->insertMedia("uploads/media1.jpg","descrizione1",array("ciaone","ueue"),"ciaoneee");
+                $res2= $db->insertMedia("uploads/media2.jpg","descrizione2",array("ciaone","ueue"),"utente2");
+                $this->assertTrue($res1);
+                $this->assertTrue($res2);
+             }
+
+            public function testRetrievePhoto(){
+                $db = new Database();
+                $res = $db->getMedia("ciaoneee");
+                $res1 = $db->getMedia("utente2");
+
+                foreach($res as $v){
+                    $path = $v['media'];
+                }
+                foreach($res1 as $v){
+                    $path1 = $v['media'];
+                }
+
+                $this->assertEquals($path,"uploads/media1.jpg");
+                $this->assertEquals($path1,"uploads/media2.jpg");
+            }
+
             public function testDropUsers(){// test cancellamento utenti
                 $db = new Database();
                 $res = $db->dropUser($this->user['username']);

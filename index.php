@@ -10,7 +10,20 @@
             if(isset($_GET['action']) && !empty($_GET['action'])){
                 switch($_GET['action']){
                     case 'insert_media':
-                                        if(isset($_POST['media'])){
+                                        if(isset($_POST['file'])){
+                                           //die(print_r($_FILES));
+                                           // print_r($_FILES);
+                                            $media_name = $_FILES['file']['name'];
+                                            $media_type = $_FILES['file']['type'];
+                                            $tmp_name = $_FILES['file']['tmp_name'];
+                                            $media_size = $_FILES['file']['size'];
+                                            if(!move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $_FILES['file']['name'])) {
+                                                die('Error uploading file - check destination is writeable.');
+                                            }
+                                            $path = "uploads/".$media_name;
+                                            $db = new Database();
+                                           $res =  $db->insertMedia($path,"Test Photo #1",array("test","ciaone","eimarò?"),$_COOKIE['id']);
+
 
                                         }else{
                                             $user_id = $_COOKIE['id'];
@@ -24,6 +37,10 @@
             }
         }else{
             echo "Bevenuto ".$_COOKIE['name']." ".$_COOKIE['surname'];
+            $db = new Database();
+            $res = $db->getMedia($_COOKIE['id']);
+            echo "<br>";
+            echo json_encode($res);
         }
 
     }else{
@@ -38,11 +55,14 @@
                                     $username = htmlspecialchars($_REQUEST['username'],ENT_QUOTES,'utf-8');
                                     $password = htmlspecialchars($_POST['password'],ENT_QUOTES,'utf-8');
                                     $res = $db->authUser($username,$password);
+                                   // die(print_r($res));
+
                                     if(!$res) die("Utente non trovato!");
-                                      setcookie("id",$res[$username]['_id'],time()+1000);
-                                      setcookie("name",$res[$username]['name'],time()+1000);
-                                      setcookie("surname",$res[$username]['surname'],time()+1000);
+                                      setcookie("id",$res[$username]['_id'],time()+10000);
+                                      setcookie("name",$res[$username]['name'],time()+10000);
+                                      setcookie("surname",$res[$username]['surname'],time()+10000);
                                       header("Location: .");
+
                                     break;
 
                     case "create_user":

@@ -41,10 +41,7 @@
             }
             if($res == 0) return false;
 
-            $user = $this->findUser($username);
-
-            return $res;
-            //return $user;
+            return true;
         }
 
         public function getUsers(){
@@ -60,22 +57,20 @@
           return $users;
         }
 
-        public function insertMedia($media, $user_id){ //funzione per inserire i media nel db
+        public function insertMedia($path,$description,$hash_tags,$user_id){ //funzione per inserire i media nel db
             try{
                   $db = $this->connect('media');
-                  $gridFs = $db->media->getGridFs(); //utilizzo il gridFs per salvare i dati binari
-                  $path = "/tmp/"; //percorso dei media
-                  $storedFile = $gridFs->storeFile(
-                  $path.$media,
-                  array("metadata" => array("user" => $user_id, "date" => time())),
-                  array("filename" => $media)
+                $res = $db->media->insert(array(
+                        "user" => $user_id,
+                        "description" => $description,
+                        "hash_tags" => array_values($hash_tags),
+                        "media" => $path ,"date" => time()
+                    )
                 );
             }catch(MongoException $e){
               die("An Error occured<br>".$e);
             }
-            $res = MongoUtilities::cursor_to_array($storedFile);
-            if($res['ok'] == 1) return true;
-            else return false;
+            return true;
         }
 
         public function findUser($username){
@@ -91,6 +86,7 @@
         public function dropUser($username){
             $db = $this->connect('users');
             $db_login = $this->connect('login');
+
             try{
                 $res = $db->users->drop(array("_id" => $username));
                 $res = $db_login->login->drop(array("_id" => $username));
@@ -104,12 +100,12 @@
         public function getMedia($user_id){
             try{
                 $db = $this->connect("media");
-                $res = $db->media->find(array("user" => $user_id));
+                $res = $db->media->find(array("user"=>$user_id));
             }catch(MongoException $e){
               die("An Error Occured<br>".$e->getMessage());
             }
-            $media = MongoUtilities::cursor_to_array($res);
-            return $media;
+
+            return MongoUtilities::cursor_to_array($res);
         }
 
         public function createUser($name,$surname,$e_mail,$username,$password,$date_of_birth,$sex){
