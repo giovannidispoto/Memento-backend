@@ -141,7 +141,7 @@
         public function insertComment($user_id,$comment,$media_id){
             try {
                 $db = $this->connect('media');
-                $res = $db->media->update(array("_id" => $media_id),array('push' => array("user" => $user_id,"comment" => $comment)));
+                $res = $db->media->update(array("_id" => Mongoid($media_id)),array('push' => array("user" => $user_id,"comment" => $comment)));
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
@@ -152,12 +152,12 @@
         public function insertLike($user_id,$media_id){
             try{
                 $db = $this->connect('media');
-                $res = $db->media->update(array("_id" => $media_id),array('$push'=>array("like" => $user_id)));
+                $res = $db->media->update(array("_id" => new MongoId($media_id)), array('$push'=> array("like" => $user_id)));
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
-
-            return $res;
+            print_r($res);
+            return true;
         }
 
     }

@@ -38,7 +38,7 @@
         }else{
             echo "Bevenuto ".$_COOKIE['name']." ".$_COOKIE['surname'];
             $db = new Database();
-            $res = $db->getMedia($_COOKIE['id']);
+            $res = $db->getMedia("ciaoneee");
             echo "<br>";
             echo json_encode($res);
         }

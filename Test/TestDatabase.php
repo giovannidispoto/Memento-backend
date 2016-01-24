@@ -32,6 +32,8 @@ class TestDatabase extends PHPUnit_Framework_TestCase
 
                 );
 
+                private $photo = "56a54717e3bcdc8a428b4567";
+                private $photo2 = "56a54717e3bcdc8a428b4568";
 
 
 
@@ -74,15 +76,15 @@ class TestDatabase extends PHPUnit_Framework_TestCase
                 $this->assertEquals($res,0);
             }
 
-            public function testInsertPhoto(){
+            public function testInsertPhoto(){ //test inserimento foto
               $db = new Database();
                 $res1 = $db->insertMedia("uploads/media1.jpg","descrizione1",array("ciaone","ueue"),"ciaoneee");
-                $res2= $db->insertMedia("uploads/media2.jpg","descrizione2",array("ciaone","ueue"),"utente2");
+                $res2 = $db->insertMedia("uploads/media2.jpg","descrizione2",array("ciaone","ueue"),"utente2");
                 $this->assertTrue($res1);
                 $this->assertTrue($res2);
              }
 
-            public function testRetrievePhoto(){
+            public function testRetrievePhoto(){ //test percorso file
                 $db = new Database();
                 $res = $db->getMedia("ciaoneee");
                 $res1 = $db->getMedia("utente2");
@@ -94,9 +96,20 @@ class TestDatabase extends PHPUnit_Framework_TestCase
                     $path1 = $v['media'];
                 }
 
+
                 $this->assertEquals($path,"uploads/media1.jpg");
                 $this->assertEquals($path1,"uploads/media2.jpg");
             }
+
+            public function testLike(){ //test inserimento like
+                $db = new Database();
+                $res = $db->insertLike("utente0",$this->photo);
+                $this->assertTrue($res);
+                $res = $db->insertLike("utente3",$this->photo2);
+                $this->assertTrue($res);
+            }
+
+            public function testComment(){}
 
             public function testDropUsers(){// test cancellamento utenti
                 $db = new Database();
