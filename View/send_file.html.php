@@ -13,10 +13,10 @@
     </head>
 
     <body>
-    <h1>Includi una foto</h1>
-        <form method="post" action="?user=<?php echo $user_id;?>&action=insert_media" enctype="multipart/form-data">
-            <input type="hidden" value="<?php echo $user_id;?>" name="user_id">
+    <h1>Inserisci una foto</h1>
+        <form method="post" action="?action=insert_media" enctype="multipart/form-data">
             <input type="hidden" name="file">
+            Descrizione: <input type="text" name="description">
             Inserisci il file: <input type="file" name="file"><br>
             <input type="submit" value="Invia">
         </form>

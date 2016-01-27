@@ -28,23 +28,34 @@
               return $db;
         }
 
-        public function authUser($username, $password){ //autenticazione
+        public function authUser($email, $password){ //autenticazione
           $user = array(
-            '_id' => $username,
+            'e_mail' => $email,
             'password' => hash("sha512",$password.$this->salt)
           );
           try{
-                $db = $this->connect('login');
-                $res = $db->login->find($user)->count();
+                $db = $this->connect('users');
+                $res = $db->users->find($user);
             }catch(MongoException $e){
               die("An error occured.<br>".$e->getMessage());
             }
-            if($res == 0) return false;
 
-            return true;
+            //return $res;
+            $user =  ($res->count() == 1)?true:false;
+            if($user){
+                $response = array(
+                    "response" => true,
+                    "user" => MongoUtilities::cursor_to_array($res)
+
+            );
+                return $response;
+            }
+
+           return false;
+
         }
 
-        public function getUsers(){
+        public function getUsers(){//funzione per ottenere la lista degli utenti
 
           try{
             $db = $this->connect('users');
@@ -70,10 +81,10 @@
             }catch(MongoException $e){
               die("An Error occured<br>".$e);
             }
-            return true;
+            print_r($res);
         }
 
-        public function findUser($username){
+        public function findUser($username){//funzione per trovare l'utente
           $db = $this->connect('users');
           try{
             $res = $db->users->find(array("_id" => $username));
@@ -83,13 +94,11 @@
             return MongoUtilities::cursor_to_array($res);
         }
 
-        public function dropUser($username){
+        public function dropUser($username){//funzione per cancellare un utente
             $db = $this->connect('users');
-            $db_login = $this->connect('login');
 
             try{
                 $res = $db->users->drop(array("_id" => $username));
-                $res = $db_login->login->drop(array("_id" => $username));
             }catch(MongoException $e){
                 die("An Error occured<br>".$e);
             }
@@ -97,7 +106,7 @@
             return true;
         }
 
-        public function getMedia($user_id){
+        public function getMedia($user_id){//funzione per ottenere i media di un utente
             try{
                 $db = $this->connect("media");
                 $res = $db->media->find(array("user"=>$user_id));
@@ -114,6 +123,7 @@
             "name" => $name,
             "surname" => $surname,
             "e_mail" => $e_mail,
+              "password" => hash("sha512",$password.$this->salt),//calcolo il digest della password + il salt
             "date_of_birth" => $date_of_birth,
             "sex" => $sex
           );
@@ -125,20 +135,10 @@
               die("An Error occured<br>".$e);
           }
 
-          $user_credential = array(
-            "_id" => $username,
-            "password" => hash("sha512",$password.$this->salt)
-          );
-          $db = $this->connect('login');
-          try{
-              $res = $db->login->insert($user_credential);
-          }catch(MongoException $e){
-              die("An Error Occured<br>".$e->getMessage());
-          }
             return true;
         }
 
-        public function insertComment($user_id,$comment,$media_id){
+        public function insertComment($user_id,$comment,$media_id){ //funzione per inserire i commenti
             try {
                 $db = $this->connect('media');
                 $res = $db->media->update(array("_id" => Mongoid($media_id)),array('push' => array("user" => $user_id,"comment" => $comment)));
@@ -149,7 +149,27 @@
 
         }
 
-        public function insertLike($user_id,$media_id){
+        public function checkEmail($email){ //funzione per vedere se l'email è già in uso
+                $db = $this->connect('users');
+            try{
+                $res = $db->users->find(array("e_mail" => $email))->count();
+            }catch(MongoException $e){
+                die("An Error Occured<br>".$e->getMessage());
+            }
+            return ($res == 0)? true: false;
+        }
+
+        public function checkUsername($username){//funzione per vedere se lo username è già in uso
+            $db = $this->connect('users');
+            try{
+                $res = $db->users->find(array("username" => $username))->count();
+            }catch(MongoException $e){
+                die("An Error Occured<br>".$e->getMessage());
+            }
+            return ($res == 0)? true: false;
+        }
+
+        public function insertLike($user_id,$media_id){//funzione per inserire il like
             try{
                 $db = $this->connect('media');
                 $res = $db->media->update(array("_id" => new MongoId($media_id)), array('$push'=> array("like" => $user_id)));

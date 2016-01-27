@@ -16,6 +16,7 @@ class TestDatabase extends PHPUnit_Framework_TestCase
                 "e_mail" => "prova@prova.it",
                 "username" => "giuseppedispoto",
                 "password" => "mariolino",
+                   "password" => "admin12345",
                 "date_of_birth" => "01/07/1971",
                 "sex" => "M"
                 );
@@ -24,7 +25,7 @@ class TestDatabase extends PHPUnit_Framework_TestCase
 
                 "name" => "Giovanni",
                 "surname" => "Dispoto",
-                "e_mail" => "prova@prova.it",
+                "e_mail" => "provaova@prova.it",
                 "username" => "giovannidispoto",
                 "password" => "admin123",
                 "date_of_birth" => "01/07/1971",
@@ -43,7 +44,8 @@ class TestDatabase extends PHPUnit_Framework_TestCase
                     "_id" => "giovannidispoto",
                     "name" => "Giovanni",
                     "surname" => "Dispoto",
-                    "e_mail" => "prova@prova.it",
+                    "e_mail" => "provaova@prova.it",
+                     "password" => hash('sha512',"admin123mementoauderesemper"),
                     "date_of_birth" => "01/07/1971",
                     "sex" => "M"
                 );
@@ -53,6 +55,7 @@ class TestDatabase extends PHPUnit_Framework_TestCase
                     "name" => "Giuseppe",
                     "surname" => "Dispoto",
                     "e_mail" => "prova@prova.it",
+                    "password" => hash('sha512',"admin12345mementoauderesemper"),
                     "date_of_birth" => "01/07/1971",
                     "sex" => "M"
                 );
@@ -70,9 +73,9 @@ class TestDatabase extends PHPUnit_Framework_TestCase
 
             public function testAuth(){ //test autenticazione
                 $db = new Database();
-                $res = $db->authUser($this->user['username'],$this->user['password']);
+                $res = $db->authUser($this->user['e_mail'],$this->user['password']);
                 $this->assertEquals($res,1);
-                $res = $db->authUser($this->user2['username'],"abbominevole");
+                $res = $db->authUser($this->user2['e_mail'],"abbominevole");
                 $this->assertEquals($res,0);
             }
 
