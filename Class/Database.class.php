@@ -74,7 +74,7 @@
                 $res = $db->media->insert(array(
                         "user" => $user_id,
                         "description" => $description,
-                        "hash_tags" => array_values($hash_tags),
+                        "hashtags" => array_values($hash_tags),
                         "media" => $path ,"date" => time()
                     )
                 );
@@ -159,6 +159,17 @@
             return ($res == 0)? true: false;
         }
 
+        public function getPhotoByHashtag($hashtag){
+            try{
+                $db = $this->connect("media");
+                $res = $db->media->find(array("hashtag" => $hashtag));
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+
+            return $res;
+        }
+
         public function checkUsername($username){//funzione per vedere se lo username è già in uso
             $db = $this->connect('users');
             try{
@@ -178,6 +189,57 @@
             }
             print_r($res);
             return true;
+        }
+
+        public function getGallery($user){
+
+            try{
+                $db = $this->connect("media");
+                $res = $db->media->find(array("username" => array('$in' => $this->getFollowers($user))))->sort(array('date' => 1) ); //order by date
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+            return $res;
+        }
+
+        public function startFollow($user, $user_to_follow){
+            try{
+                $db = $this->connect("users");
+                $res = $db->users->update(array("_id" => $user_to_follow), array('push'=> array("followers" => $user)));
+                $res_2 = $db->users->update(array("_id" => $user), array('push' => array("following" => $user_to_follow)));
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+            var_dump($res);
+            var_dump($res_2);
+        }
+
+        public function getFollowers($user){
+            try{
+                $db = $this->connect("users");
+                $res = $db->users->find(array("_id"=>$user),array("followers" => 1));
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+
+            foreach($res as $follower){
+                $followers[] = $follower;
+            }
+
+            return (!empty($followers))? $followers : false;
+        }
+
+
+        public function stopFollow($user, $user_to_stop_following){
+            try{
+                $db = $this->connect("users");
+                $res = $db->users->update(array("_id" => $user_to_stop_following), array('pulll'=> array("followers" => $user)));
+                $res_2 = $db->users->update(array("_id" => $user), array('pull' => array("following" => $user_to_stop_following)));
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+            var_dump($res);
+            var_dump($res_2);
         }
 
     }

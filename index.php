@@ -5,8 +5,11 @@
         
     spl_autoload_register('my_autoloader');
 
-  if(isset($_COOKIE['id'])){//controllo che sia stato impostato il cookie
+    $testing = true;
+
+  if(isset($_COOKIE['id']) || $testing){//controllo che sia stato impostato il cookie
             if(isset($_GET['action']) && !empty($_GET['action'])){
+                $db = new Database();
                 switch($_GET['action']){
                     case 'insert_media':
                                         if(isset($_POST['file'])){ //se è impostata la variabile file, passata tramite il form
@@ -19,7 +22,6 @@
                                                 die('Error uploading file - check destination is writeable.');
                                             }
                                             $path = "uploads/".$media_name;
-                                            $db = new Database();
                                            $res =  $db->insertMedia($path,$description,array("test","ciaone","eimarò?"),$_COOKIE['id']); //inserisco il file
 
 
@@ -33,7 +35,6 @@
                                             //die("Get user photo");
                                             if(isset($_GET['user']) && !empty($_GET['user'])){
                                                 $username = htmlspecialchars($_GET['user'],ENT_QUOTES,'utf-8');
-                                                $db = new Database();
                                                 $res = $db->getMedia($username);
                                                 print_r($res);
                                             }else{
@@ -43,14 +44,26 @@
                                             break;
 
                     case 'get_gallery':
-                                            die("Get gallery");
+                                           // die("Get gallery");
 
+                                            $res = $db->getGallery(function($testing){
+                                                if($testing) return $_GET['user'];
+                                                return $_COOKIE['id'];
+                                            });
+                                            print_r($res);
                                             break;
 
                     case 'get_photo_by_hashtag':
 
-                                            die("Search photo by hashtag");
+                                           // die("Search photo by hashtag");
+                                           if(isset($_GET['hashtag']) && !empty($_GET["hashtag"])){
 
+                                               $hashtag = htmlspecialchars($_GET['hashtag'],ENT_QUOTES,"utf-8");
+                                               $res = $db->getPhotoByHashtag($hashtag);
+                                               print_r($res);
+                                           }else{
+                                               echo "Error - Hashtag not found";
+                                           }
                                             break;
 
                     case 'get_photo':
@@ -64,7 +77,7 @@
                 }
 
         }else{
-            echo "<h1>Bevenuto ".$_COOKIE['name']." ".$_COOKIE['surname']."</h1>";
+           // echo "<h1>Bevenuto ".$_COOKIE['name']." ".$_COOKIE['surname']."</h1>";
         }
 
     }else{
@@ -87,7 +100,7 @@
                                       setcookie("name",$res['user'][$username]['name'],time()+10000);
                                       setcookie("surname",$res['user'][$username]['surname'],time()+10000);
 
-                                      header("Location: index.php");//ricarico la pagina
+                                      header("Location: .");//ricarico la pagina
 
                                     break;
 
