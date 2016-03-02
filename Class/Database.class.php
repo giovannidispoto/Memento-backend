@@ -14,19 +14,24 @@
         private $port = 27010;
         private $username = '';
         private $password = '';
+        private $dbname="memento";
         private $conn;
         private $salt = "mementoauderesemper"; //salt da aggiungere alle password, prima di calcolare il digest
+        private $handler;
 
 
-      public function connect($dbname){ //funzione per connessione al database
+      public function connect(){ //funzione per connessione al database
               try{
                 $this->conn = new MongoClient();
-                $db = $this->conn->selectDB($dbname);
+                $this->handler = $this->conn->selectDB($this->dbname);
               }catch(MongoConnectionException $e){
                 die('An Error occured<br>'.$e);
               }
-              return $db;
         }
+
+        public function __construct(){
+                $handler = $this->connect();
+          }
 
         public function authUser($email, $password){ //autenticazione
           $user = array(
@@ -34,8 +39,8 @@
             'password' => hash("sha512",$password.$this->salt)
           );
           try{
-                $db = $this->connect('users');
-                $res = $db->users->find($user);
+
+                $res = $this->handler->users->find($user);
             }catch(MongoException $e){
               die("An error occured.<br>".$e->getMessage());
             }
@@ -58,8 +63,8 @@
         public function getUsers(){//funzione per ottenere la lista degli utenti
 
           try{
-            $db = $this->connect('users');
-            $res = $db->users->find();
+
+            $res = $this->handler->users->find();
           }catch(MongoException $e){
             die("An error occured.<br>".$e->getMessage());
           }
@@ -85,9 +90,8 @@
         }
 
         public function findUser($username){//funzione per trovare l'utente
-          $db = $this->connect('users');
           try{
-            $res = $db->users->find(array("_id" => $username));
+            $res = $this->handler->users->find(array("_id" => $username));
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
           }
@@ -95,10 +99,9 @@
         }
 
         public function dropUser($username){//funzione per cancellare un utente
-            $db = $this->connect('users');
 
             try{
-                $res = $db->users->drop(array("_id" => $username));
+                $res = $this->handler->users->drop(array("_id" => $username));
             }catch(MongoException $e){
                 die("An Error occured<br>".$e);
             }
@@ -108,8 +111,7 @@
 
         public function getMedia($user_id){//funzione per ottenere i media di un utente
             try{
-                $db = $this->connect("media");
-                $res = $db->media->find(array("user"=>$user_id));
+                $res = $this->handler->media->find(array("user"=>$user_id));
             }catch(MongoException $e){
               die("An Error Occured<br>".$e->getMessage());
             }
@@ -127,9 +129,9 @@
             "date_of_birth" => $date_of_birth,
             "sex" => $sex
           );
-          $db = $this->connect('users');
+
           try{
-            $user = $db->users->insert($user);
+            $user = $this->handler->users->insert($user);
 
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
@@ -140,8 +142,7 @@
 
         public function insertComment($user_id,$comment,$media_id){ //funzione per inserire i commenti
             try {
-                $db = $this->connect('media');
-                $res = $db->media->update(array("_id" => Mongoid($media_id)),array('push' => array("user" => $user_id,"comment" => $comment)));
+                $res = $$this->handler->media->update(array("_id" => Mongoid($media_id)),array('push' => array("user" => $user_id,"comment" => $comment)));
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
@@ -150,9 +151,8 @@
         }
 
         public function checkEmail($email){ //funzione per vedere se l'email è già in uso
-                $db = $this->connect('users');
             try{
-                $res = $db->users->find(array("e_mail" => $email))->count();
+                $res = $this->handler->users->find(array("e_mail" => $email))->count();
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
@@ -161,8 +161,7 @@
 
         public function getPhotoByHashtag($hashtag){
             try{
-                $db = $this->connect("media");
-                $res = $db->media->find(array("hashtag" => $hashtag));
+                $res = $this->handler->media->find(array("hashtag" => $hashtag));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
@@ -171,9 +170,8 @@
         }
 
         public function checkUsername($username){//funzione per vedere se lo username è già in uso
-            $db = $this->connect('users');
             try{
-                $res = $db->users->find(array("username" => $username))->count();
+                $res = $this->handler->users->find(array("username" => $username))->count();
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
@@ -182,8 +180,7 @@
 
         public function insertLike($user_id,$media_id){//funzione per inserire il like
             try{
-                $db = $this->connect('media');
-                $res = $db->media->update(array("_id" => new MongoId($media_id)), array('$push'=> array("like" => $user_id)));
+                $res = $this->handler->media->update(array("_id" => new MongoId($media_id)), array('$push'=> array("like" => $user_id)));
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
@@ -194,8 +191,7 @@
         public function getGallery($user){
 
             try{
-                $db = $this->connect("media");
-                $res = $db->media->find(array("username" => array('$in' => $this->getFollowers($user))))->sort(array('date' => 1) ); //order by date
+                $res = $this->handler->media->find(array("username" => array('$in' => $this->getFollowers($user))))->sort(array('date' => 1) ); //order by date
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
@@ -204,8 +200,7 @@
 
         public function startFollow($user, $user_to_follow){
             try{
-                $db = $this->connect("users");
-                $res = $db->users->update(array("_id" => $user_to_follow), array('push'=> array("followers" => $user)));
+                $res = $this->handler->users->update(array("_id" => $user_to_follow), array('push'=> array("followers" => $user)));
                 $res_2 = $db->users->update(array("_id" => $user), array('push' => array("following" => $user_to_follow)));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
@@ -216,8 +211,7 @@
 
         public function getFollowers($user){
             try{
-                $db = $this->connect("users");
-                $res = $db->users->find(array("_id"=>$user),array("followers" => 1));
+                $res = $this->handler->users->find(array("_id"=>$user),array("followers" => 1));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
@@ -232,14 +226,24 @@
 
         public function stopFollow($user, $user_to_stop_following){
             try{
-                $db = $this->connect("users");
-                $res = $db->users->update(array("_id" => $user_to_stop_following), array('pulll'=> array("followers" => $user)));
+                $res = $this->handler->users->update(array("_id" => $user_to_stop_following), array('pull'=> array("followers" => $user)));
                 $res_2 = $db->users->update(array("_id" => $user), array('pull' => array("following" => $user_to_stop_following)));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
             var_dump($res);
             var_dump($res_2);
+        }
+
+        public function registerSession($username,$token,$time){
+            $time = $time + 31536000000;
+            try{
+                $res = $this->handler->users->update(array("_id" => $username), array("push" => array("sessions"=>array("token" => $token, "expire" => $time))));
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+
+            print_r($res);
         }
 
     }

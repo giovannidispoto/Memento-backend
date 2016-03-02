@@ -5,9 +5,9 @@
         
     spl_autoload_register('my_autoloader');
 
-    $testing = true;
+    define("TESTING", false);
 
-  if(isset($_COOKIE['id']) || $testing){//controllo che sia stato impostato il cookie
+  if(isset($_COOKIE['id']) || TESTING){//controllo che sia stato impostato il cookie
             if(isset($_GET['action']) && !empty($_GET['action'])){
                 $db = new Database();
                 switch($_GET['action']){
@@ -77,7 +77,8 @@
                 }
 
         }else{
-           // echo "<h1>Bevenuto ".$_COOKIE['name']." ".$_COOKIE['surname']."</h1>";
+            echo "<h1>Memento Backend</h1>";
+
         }
 
     }else{
@@ -94,14 +95,17 @@
                                     $res = $db->authUser($username,$password);
                                    // die(print_r($res));
 
-                                    if(!$res) die("Utente non trovato!");
+                                    if(!$res) die(json_encode(array("error" => "User not found")));
                                         //imposto i cookie
-                                      setcookie("id",$res['user'][$username]['_id'],time()+10000);
+                                     /* setcookie("id",$res['user'][$username]['_id'],time()+10000);
                                       setcookie("name",$res['user'][$username]['name'],time()+10000);
                                       setcookie("surname",$res['user'][$username]['surname'],time()+10000);
 
-                                      header("Location: .");//ricarico la pagina
-
+                                      header("Location: .");//ricarico la pagina*/
+                                    $token = sha1(uniqid($username));
+                                    $db->registerSession($username,$token,time());
+                                    $rs = array("token" => $token);
+                                    echo json_encode($rs);
                                     break;
 
                     case "create_user":
