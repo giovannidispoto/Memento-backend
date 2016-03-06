@@ -114,7 +114,7 @@ class TestDatabase extends PHPUnit_Framework_TestCase
 
             public function testComment(){}
 
-            public function testDropUsers(){// test cancellamento utenti
+            public function testDropUsers(){// test cancellazione utenti
                 $db = new Database();
                 $res = $db->dropUser($this->user['username']);
                 $this->assertTrue($res);

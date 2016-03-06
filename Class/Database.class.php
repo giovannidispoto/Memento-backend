@@ -46,8 +46,8 @@
             }
 
             //return $res;
-            $user =  ($res->count() == 1)?true:false;
-            if($user){
+             return ($res->count() == 1)? true: false;
+           /* if($user){
                 $response = array(
                     "response" => true,
                     "user" => MongoUtilities::cursor_to_array($res)
@@ -56,7 +56,7 @@
                 return $response;
             }
 
-           return false;
+           return true;*/
 
         }
 
@@ -75,18 +75,18 @@
 
         public function insertMedia($path,$description,$hash_tags,$user_id){ //funzione per inserire i media nel db
             try{
-                  $db = $this->connect('media');
-                $res = $db->media->insert(array(
+                $res = $this->handler->media->insert(array(
                         "user" => $user_id,
                         "description" => $description,
                         "hashtags" => array_values($hash_tags),
-                        "media" => $path ,"date" => time()
+                        "media" => $path ,
+                        "date" => time()
                     )
                 );
             }catch(MongoException $e){
               die("An Error occured<br>".$e);
             }
-            print_r($res);
+            return true;
         }
 
         public function findUser($username){//funzione per trovare l'utente
@@ -235,10 +235,10 @@
             var_dump($res_2);
         }
 
-        public function registerSession($username,$token,$time){
+        public function registerSession($username,$token,$time,$ip){
             $time = $time + 31536000000;
             try{
-                $res = $this->handler->users->update(array("_id" => $username), array("push" => array("sessions"=>array("token" => $token, "expire" => $time))));
+                $res = $this->handler->users->update(array("_id" => $username), array("push" => array("sessions"=>array("token" => $token, "ip"=>$ip, "expire" => $time))));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
