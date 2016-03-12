@@ -7,9 +7,13 @@
 
     define("TESTING", false);
 
-  if(isset($_COOKIE['id']) || TESTING){//controllo che sia stato impostato il cookie
+
+  if((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING){//controllo che sia stato impostato il cookie
             if(isset($_GET['action']) && !empty($_GET['action'])){
                 $db = new Database();
+                $user = $_POST['user_id'];
+                $token = $_POST['token'];
+                if(!$db->checkToken($user,$token)) die(json_encode(array("error" => "Incorrect token")));
                 switch($_GET['action']){
                     case 'insert_media':
                                         if(isset($_POST['file'])){ //se è impostata la variabile file, passata tramite il form
@@ -43,16 +47,6 @@
 
                                             break;
 
-                    case 'get_gallery':
-                                           // die("Get gallery");
-
-                                            $res = $db->getGallery(function($testing){
-                                                if($testing) return $_GET['user'];
-                                                return $_COOKIE['id'];
-                                            });
-                                            print_r($res);
-                                            break;
-
                     case 'get_photo_by_hashtag':
 
                                            // die("Search photo by hashtag");
@@ -67,7 +61,12 @@
                                             break;
 
                     case 'get_photo':
-                                            die("Get photo for homepage");
+                                            $res = $db->getHomePhoto(function($testing){
+                                                if($testing) return $_POST['user_id'];
+                                                return $_COOKIE['id'];
+                                            });
+                                           $res = array("action" => "getting photo");
+                                            echo json_encode($res);
 
                                            break;
 
@@ -95,7 +94,7 @@
                                     $res = $db->authUser($username,$password);
                                    // die(print_r($res));
 
-                                    if(!$res) die(json_encode(array("error" => "User not found")));
+                                    if(!$res) die(json_encode(array("success" => false, "error" => "User not found")));
                                         //imposto i cookie
                                      /*
                                       * setcookie("id",$res['user'][$username]['_id'],time()+10000);
@@ -107,8 +106,12 @@
                                     $token = sha1(uniqid($username));
                                     $ip = $_SERVER['REMOTE_ADDR'];
                                     $db->registerSession($username,$token,time(),$ip);
-                                    $rs = array("token" => $token);
-                                    echo json_encode($rs);
+                                    $rs = array(
+                                        "success" => true,
+                                        "user_id" => $username,
+                                        "token" => $token
+                                    );
+                      echo json_encode($rs);
                                     break;
 
                     case "create_user":
@@ -119,20 +122,33 @@
                                     $password = htmlspecialchars($_POST['password'],ENT_QUOTES,'utf-8');
                                     $date_of_birth = htmlspecialchars($_POST['date_of_birth'],ENT_QUOTES,'utf-8');
                                     $sex = htmlspecialchars($_POST['sex'],ENT_QUOTES,'utf-8');
-                                    if(($db->checkUsername($username) or header("Location: index.php?error=invalid_username")) && ($db->checkEmail($email) or header("Location: index.php?error=invalid_email"))){ //controllo che l'email o lo username non sia già presente nel db
-                                        $res = $db->createUser($name,$surname,$e_mail,$username,$password,$date_of_birth,$sex);
+                                    if($db->checkUsername($username) or die("Error") && $db->checkEmail($email) or die("Error")){ //controllo che l'email o lo username non sia già presente nel db
+                                        $res = $db->createUser("null",$name,$surname,$e_mail,$username,$password,$date_of_birth,$sex);
                                         if(!$res) die("An error occured while creating user account");
                                         else{
                                             //imposto i cookie
-                                            setcookie("id",$username,time()+1000);
+                                           /* setcookie("id",$username,time()+1000);
                                             setcookie("name",$name,time()+1000);
                                             setcookie("surname",$surname,time()+1000);
-                                            header("Location: .");
+                                            header("Location: .");*/
+                                           $success = true;
 
                                         }
                                     }
+                                    echo json_encode(function($success, $error){
+                                        if($success){
+                                            $response = array("success" => true);
+                                        }else{
+                                            $response = array("success" => false, "error"=> $error);
+                                        }
+                                        return $response;
+                                    });
 
                                     break;
+                    case "cookie":
+                        echo json_encode($_COOKIE);
+                        //echo "ok";
+                                        break;
 
                 }
 
