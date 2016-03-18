@@ -10,7 +10,7 @@
 
     class Database{
 
-        private $host = 'localhost';
+        private $host = 'localhost'; //parametri accesso db
         private $port = 27010;
         private $username = '';
         private $password = '';
@@ -30,14 +30,14 @@
         }
 
         public function __construct(){
-                $handler = $this->connect();
+                $handler = $this->connect(); //crea una istanza di connessione al DB
           }
 
-        public function authUser($email, $password){ //autenticazione
+        public function authUser($user_id, $password){ //autenticazione
           $user = array(
-            'e_mail' => $email,
-            'password' => hash("sha512",$password.$this->salt)
-          );
+            '_id' => $user_id,
+            'password' => hash("sha512",$password.$this->salt) 
+          );//calcolo il digest della password
           try{
 
                 $res = $this->handler->users->find($user);
@@ -45,7 +45,7 @@
               die("An error occured.<br>".$e->getMessage());
             }
 
-             return ($res->count() == 1)? true: false;
+             return ($res->count() == 1)? true: false; //se l'utente esiste, ritorno true
 
         }
 
@@ -58,14 +58,14 @@
             die("An error occured.<br>".$e->getMessage());
           }
 
-          $users = MongoUtilities::cursor_to_array($res);
-          return $users;
+          //$users = MongoUtilities::cursor_to_array($res);
+          return $res;
         }
 
         public function insertMedia($path,$description,$hash_tags,$user_id){ //funzione per inserire i media nel db
             try{
                 $res = $this->handler->media->insert(array(
-                        "user" => array( $this->handler->createDBRef('users',$user_id)),
+                        "user_id" => array( $this->handler->createDBRef('users',$user_id)),
                         "description" => $description,
                         "hashtags" => array_values($hash_tags),
                         "media" => $path ,
@@ -78,19 +78,19 @@
             return true;
         }
 
-        public function findUser($username){//funzione per trovare l'utente
+        public function findUser($user_id){//funzione per trovare l'utente
           try{
-            $res = $this->handler->users->find(array("_id" => $username));
+            $res = $this->handler->users->find(array("_id" => $user_id));
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
           }
             return MongoUtilities::cursor_to_array($res);
         }
 
-        public function dropUser($username){//funzione per cancellare un utente
+        public function dropUser($user_id){//funzione per cancellare un utente
 
             try{
-                $res = $this->handler->users->drop(array("_id" => $username));
+                $res = $this->handler->users->drop(array("_id" => $user_id));
             }catch(MongoException $e){
                 die("An Error occured<br>".$e);
             }
@@ -98,30 +98,32 @@
             return true;
         }
 
-        public function getMedia($user_id){//funzione per ottenere i media di un utente
+        public function getUserProfile($user_id){//funzione per ottenere i media di un utente
             try{
-                $res = $this->handler->media->find(array("user"=>$user_id))->sort(array("date" => 1));
+                $res = $this->handler->media->find(array('user_id.$id'=>$user_id))->sort(array("date" => 1));
             }catch(MongoException $e){
               die("An Error Occured<br>".$e->getMessage());
             }
 
-            return MongoUtilities::cursor_to_array($res);
+           return $res;
         }
 
-        public function createUser($avatar,$name,$surname,$e_mail,$username,$password,$date_of_birth,$sex){
+        public function createUser($avatar,$name,$surname,$e_mail,$user_id,$password,$date_of_birth,$sex){ //funzione per creare un utente
           $user = array(
-            "_id" => $username,
+            "_id" => $user_id,
               "avatar" => $avatar,
             "name" => $name,
             "surname" => $surname,
             "e_mail" => $e_mail,
               "password" => hash("sha512",$password.$this->salt),//calcolo il digest della password + il salt
             "date_of_birth" => $date_of_birth,
+              "avatar" => "mucca.jpg",
             "sex" => $sex
           );
 
           try{
-            $user = $this->handler->users->insert($user);
+            $user = $this->handler->users->insert($user); //inserisco l'utente
+              $this->startFollow($user_id,$user_id);
 
           }catch(MongoException $e){
               die("An Error occured<br>".$e);
@@ -132,12 +134,11 @@
 
         public function insertComment($user_id,$comment,$media_id){ //funzione per inserire i commenti
             try {
-                $res = $$this->handler->media->update(array("_id" => Mongoid($media_id)),array('push' => array("user" => $user_id,"comment" => $comment)));
+                $res = $this->handler->media->update(array("_id" => new  MongoId($media_id)),array('$push' => array('comments' => array("user_id" => $user_id,"comment" => $comment))));
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
-            return $res;
-
+            return true;
         }
 
         public function checkEmail($email){ //funzione per vedere se l'email è già in uso
@@ -149,7 +150,7 @@
             return ($res == 0)? true: false;
         }
 
-        public function getPhotoByHashtag($hashtag){
+        public function getMediaByHashtag($hashtag){
             try{
                 $res = $this->handler->media->find(array("hashtag" => $hashtag));
             }catch(MongoException $e){
@@ -159,9 +160,9 @@
             return $res;
         }
 
-        public function checkUsername($username){//funzione per vedere se lo username è già in uso
+        public function checkUsername($user_id){//funzione per vedere se lo username è già in uso
             try{
-                $res = $this->handler->users->find(array("username" => $username))->count();
+                $res = $this->handler->users->find(array("user_id" => $user_id))->count();
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
@@ -178,34 +179,69 @@
             return true;
         }
 
+        public function removeLike($user_id,$media_id){//funzione per inserire il like
+            try{
+                $res = $this->handler->media->update(array("_id" => new MongoId($media_id)), array('$pop'=> array("like" => $user_id)));
+            }catch(MongoException $e){
+                die("An Error Occured<br>".$e->getMessage());
+            }
+            //print_r($res);
+            return true;
+        }
+
         public function checkToken($user, $token){
             try{
-                $res = $this->handler->users->find(array("_id" => $user, "sessions" => array('$elemMatch' => array("token" => $token))));
+                $res = $this->handler->users->find(array("_id" => $user, "sessions" => array('$elemMatch' => array("token" => $token))))->count();
             }catch(MongoException $e){
                 die("An Error Occured<br>".$e->getMessage());
             }
 
-            return ($res->count() == 1)? true : false;
+            return ($res == 1)? true : false;
         }
 
-        public function getHomePhoto($user){
-
+        public function getFollowing($user){
             try{
-                $res = $this->handler->media->find(array("username" => array('$in' => $this->getFollowers($user))))->sort(array('date' => 1) ); //order by date
+                $res = $this->handler->users->find(array("_id" => $user), array("following" => 1));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
 
             foreach($res as $element){
-                $element['avatar'] = $this->getAvatar($element['user']); //aggiungo l'avatar dell'utente
+                $person[] = $element['following'][0];
             }
+            return $person;
+        }
+
+        public function getHomeMedia($user){
+
+            try{
+                $res_ = $this->handler->users->find(array('_id' => $user),array("following" => 1));
+
+                //die(print_r($res_['following']));
+                foreach($res_ as $element){
+                    $users = $element['following'];
+                }
+
+                $res = $this->handler->media->find(array('user_id.$id' => array('$in' => $users)))->sort(array('date' => 1) ); //order by date
+                foreach($res as $element){
+
+            }
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+
+
+          /*  foreach($res as $element){
+                echo $element['user_id'][0]['$id']."<br>"";
+                //$element['avatar'] = $this->getAvatar($element['user_id']['$id']); //aggiungo l'avatar dell'utente
+            }*/
             return $res;
         }
 
 
-        public function getAvatar($username){
+        public function getAvatar($user_id){
             try{
-                $res = $this->handler->users(array("_id" => $username), array("avatar" => 1));
+                $res = $this->handler->users->find(array("_id" => $user_id, array("avatar" => 1));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
@@ -217,13 +253,12 @@
 
         public function startFollow($user, $user_to_follow){
             try{
-                $res = $this->handler->users->update(array("_id" => $user_to_follow), array('push'=> array("followers" => $user)));
-                $res_2 = $db->users->update(array("_id" => $user), array('push' => array("following" => $user_to_follow)));
+                $res = $this->handler->users->update(array("_id" => $user_to_follow), array('$push'=> array("followers" => $user)));
+                $res_2 = $this->handler->users->update(array("_id" => $user), array('$push' => array("following" => $user_to_follow)));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
-            var_dump($res);
-            var_dump($res_2);
+           return true;
         }
 
         public function getFollowers($user){
@@ -240,22 +275,30 @@
             return (!empty($followers))? $followers : false;
         }
 
-
-        public function stopFollow($user, $user_to_stop_following){
+        public function getPhotoDetails($photo_id){
             try{
-                $res = $this->handler->users->update(array("_id" => $user_to_stop_following), array('$pull'=> array("followers" => $user)));
-                $res_2 = $db->users->update(array("_id" => $user), array('$pull' => array("following" => $user_to_stop_following)));
+                $res = $this->handler->media->findOne(array("_id" => new MongoId($photo_id)));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }
-            var_dump($res);
-            var_dump($res_2);
+
+            return $res;
         }
 
-        public function registerSession($username,$token,$time,$ip){
+        public function stopFollow($user, $user_to_stop_following){
+            try{
+                 $this->handler->users->update(array("_id" => $user_to_stop_following), array('$pull'=> array("followers" => $user)));
+                 $this->handler->users->update(array("_id" => $user), array('$pull' => array("following" => $user_to_stop_following)));
+            }catch(MongoException $e){
+                die("Something went wrong <br>".$e->getMessage());
+            }
+            return true;
+        }
+
+        public function registerSession($user_id,$token,$time,$ip){
             $time = $time + 31536000000;
             try{
-                $res = $this->handler->users->update(array("_id" => $username), array('$push' => array("sessions" => array("token" => $token, "ip"=>$ip, "expire" => $time))));
+                $res = $this->handler->users->update(array("_id" => $user_id), array('$push' => array("sessions" => array("token" => $token, "ip"=>$ip, "expire" => $time))));
             }catch(MongoException $e){
                 die("Something went wrong <br>".$e->getMessage());
             }

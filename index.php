@@ -1,77 +1,144 @@
 <?php
         function my_autoloader($class){
-            require_once("Class/$class.class.php");
+            require_once("Class/$class.class.php"); // funzione per importare automaticamente le classi richiamate
         }
         
     spl_autoload_register('my_autoloader');
 
-    define("TESTING", false);
+    define("TESTING", false); //flag testing
 
+  if(isset($_POST['token']) && isset($_POST['user_id'])){//controllo che sia stato impostato il cookie
 
-  if((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING){//controllo che sia stato impostato il cookie
             if(isset($_GET['action']) && !empty($_GET['action'])){
-                $db = new Database();
+                $db = new Database(); 
                 $user = $_POST['user_id'];
                 $token = $_POST['token'];
-                if(!$db->checkToken($user,$token)) die(json_encode(array("error" => "Incorrect token")));
-                switch($_GET['action']){
+
+                if(!$db->checkToken($user,$token)) die(json_encode(array("error" => "Incorrect token"))); //se non esiste nessuna accoppiata token-utente, restituisco l'errore
+                switch($_GET['action']){ //routes URL
                     case 'insert_media':
-                                        if(isset($_POST['file'])){ //se è impostata la variabile file, passata tramite il form
-                                            $description = $_POST['description'];
-                                            $media_name = $_FILES['file']['name']; //prendo il nome del file
-                                            $media_type = $_FILES['file']['type'];//tipo
+                                       // if(isset($_POST['file'])){ //se è impostata la variabile file, passata tramite il form
+                                           // die(print_r($_POST));
+                                            $description = $_POST['description'];  //descrizione foto
+                                            $media_name =  uniqid(time()).".jpg";  //prendo il nome del file
+                                            $media_type = $_FILES['file']['type']; 
                                             $tmp_name = $_FILES['file']['tmp_name'];
                                             $media_size = $_FILES['file']['size'];
-                                            if(!move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $_FILES['file']['name'])) { //sposto il file nella dir dei media
+                                            if(!move_uploaded_file($_FILES['file']['tmp_name'], "uploads/$media_name")) { //sposto il file nella dir dei media
                                                 die('Error uploading file - check destination is writeable.');
                                             }
-                                            $path = "uploads/".$media_name;
-                                           $res =  $db->insertMedia($path,$description,array("test","ciaone","eimarò?"),$_COOKIE['id']); //inserisco il file
+                                            $path = $media_name;
+                                            $res =  $db->insertMedia($path,$description,array("test","ciaone","eimarò?"),$_POST['user_id']); //inserisco il file
+                                            echo json_encode(array("success" => true));
 
 
-                                        }else{//se il file non è impostato, mostro il form di invio dei file
-                                            $user_id = $_COOKIE['id'];
-                                            include App::view("send_file");
-                                        }
+                                      //  }else{//se il file non è impostato, mostro il form di invio dei file
+                                        //    echo json_encode(array("success" => false));
+                                        //}
                                         break;
 
-                    case 'get_user_photo':
+                    case 'get_user_profile':
                                             //die("Get user photo");
-                                            if(isset($_GET['user']) && !empty($_GET['user'])){
-                                                $username = htmlspecialchars($_GET['user'],ENT_QUOTES,'utf-8');
-                                                $res = $db->getMedia($username);
-                                                print_r($res);
-                                            }else{
-                                                die("Insert username");
-                                            }
+                                                $username = htmlspecialchars($_POST['user_id'], ENT_QUOTES, 'utf-8');
+                                                $res = $db->getUserProfile($username); //ottengo il profilo dell'utente
+                                                foreach($res as $element) {
+                                                    $medias[] = $element; //inserisco le foto in un array
+                                                }
+                                                    $response = array(
+                                                        "avatar" => "mucca.jpg"
+                                                    );
+                                                //print_r($res);
+                                                if(count($medias) > 0 ){
+                                                    $response["photos"] = $medias; //inserisco le foto, nel caso ci siano
+                                                }
+                                                echo json_encode($response); //stampo il JSON
 
                                             break;
 
                     case 'get_photo_by_hashtag':
 
                                            // die("Search photo by hashtag");
-                                           if(isset($_GET['hashtag']) && !empty($_GET["hashtag"])){
+                                           if(isset($_POST['hashtag']) && !empty($_POST["hashtag"])){ 
 
-                                               $hashtag = htmlspecialchars($_GET['hashtag'],ENT_QUOTES,"utf-8");
-                                               $res = $db->getPhotoByHashtag($hashtag);
-                                               print_r($res);
+                                               $hashtag = htmlspecialchars($_POST['hashtag'],ENT_QUOTES,"utf-8");
+                                               $res = $db->getMediaByHashtag($hashtag); //ottengo le foto che hanno l'hashtag richiesto
+                                               echo json_encode($res);
                                            }else{
-                                               echo "Error - Hashtag not found";
+                                               echo json_encode(array("error" => "Nothing was found"));
                                            }
                                             break;
 
-                    case 'get_photo':
-                                            $res = $db->getHomePhoto(function($testing){
-                                                if($testing) return $_POST['user_id'];
-                                                return $_COOKIE['id'];
-                                            });
-                                           $res = array("action" => "getting photo");
-                                            echo json_encode($res);
+                    case 'get_photo': //get_photos
+                                               // die(print_r($_POST));
+                                            $res = $db->getHomeMedia($_POST['user_id']); //ottengo i media per la home page
+                                          // $res = array("action" => "getting photo");
+                                               foreach($res as $element){
+
+                                                   $element['avatar'] =  $db->getAvatar($element['user_id'][0]['$id']); //inserisco l'avatar dell'utente
+                                                   $photos[]= $element;
+                                               }
+                                            //   echo count($photos);
+                                           echo json_encode($photos);
 
                                            break;
+                    case 'start_following':
+                                                if(isset($_POST['user_to_follow'])){
+                                                    $res = $db->startFollow($_POST['user'],$_POST['user_to_follow']); //inizio a seguire una utente
+                                                    echo json_encode(array("success" => $res));
+                                                }
 
+                                             break;
+
+                    case 'stop_following':      if(isset($_POST['user_to_unfollow'])){
+                                                        $res = $db->stopFollow($_POST['user'],$_POST['user_to_follow']); //smetto di seguire una persona
+                                                          echo json_encode(array("success" => $res));
+                                                    }
+
+                                             break;
+                    case 'insert_like':
+                                                if(isset($_POST['media_id'])){
+                                                    $res = $db->insertLike($_POST['user_id'],$_POST['media_id']); //inserisco like ad un media
+                                                    echo json_encode(array("success" => $res));
+                                                }
+
+                                             break;
+
+                    case 'remove_like':
+                                                    if(isset($_POST['media_id'])){
+                                                      $res = $db->removeLike($_POST['user_id'],$_POST['media_id']); //rimuovo il like da un media
+                                                       echo json_encode(array("success" => $res));
+                                                     }
+                                             break;
+                    case 'get_photo_details':
+                                                $photo_id = $_POST['media_id'];
+                                                $res = $db->getPhotoDetails($photo_id); //ottengo la foto che si vuole visualizzare
+                                                $user_id = getUserFromPhoto($res);
+                                                $media;
+                                                foreach($res as $k => $v){
+                                                    $media[$k] = $v;
+                                                }
+                                                $response = array(
+                                                    "user_id" => $user_id, //inserisco il nome utente
+                                                    "avatar" => $db->getAvatar($user_id), //inserisco l'avatar
+                                                    "photo" => $media //inserisco la foto
+                                                );
+                                                echo json_encode($response);
+                                                break;
+
+                    case 'insert_comment':
+                                                if(isset($_POST['comment']) && isset($_POST['media_id'])){ 
+                                                    $comment = $_POST['comment'];
+                                                    $media_id = $_POST['media_id'];
+                                                    $res = $db->insertComment($user,$comment,$media_id); //inscerisco commento
+                                                }else{
+                                                    $res = false;
+                                                }
+                                                 echo json_encode(array("success" => $res));
+
+
+                                                break;
                   default:
-                            echo "Your request: ".$_GET['action']." for ".$_GET['user'];
+                            echo "Your request: ".$_REQUEST['action']." for ".$_REQUEST['user_id'];
                             break;
                 }
 
@@ -145,10 +212,7 @@
                                     });
 
                                     break;
-                    case "cookie":
-                        echo json_encode($_COOKIE);
-                        //echo "ok";
-                                        break;
+              
 
                 }
 
@@ -158,4 +222,12 @@
           include "View/login.html.php";
         }
       }
+
+function getUserFromPhoto($photo){
+
+            $user = $photo['user_id'][0]['$id'];
+
+
+    return $user;
+}
 ?>
