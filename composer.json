@@ -1,0 +1,5 @@
+{
+    "require": {
+        "coreproc/gcm": "^0.1.2"
+    }
+}
