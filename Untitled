@@ -1,0 +1,53 @@
+<?php
+  /*
+    Class used for perform analysis over data
+  */
+  class Analytics{
+
+      private $conn;
+      private Database $db;
+
+      public __costruct($conn, Database &$db){
+          $this->$db = $db;
+          $this->$conn = $db->getConnection();
+      }
+
+
+      public function getPhotoRecommended($user_id){
+            try{
+                $res_log = $this->handler->log->distinct("media_id");
+                foreach($res_log as $media){
+                    //print($media);
+                    $query = array(
+                        array('$match' => array('_id' => $media)),
+                        array('$group' => array('_id' => '$hashtag'))
+                    );
+
+
+                    $rs = $this->handler->media->distinct("hashtags", array("_id" => new MongoId($media)));
+                    foreach($rs as $element){
+                        $hashtags[] = $element;
+                    }
+
+                }
+            }catch(MongoException $e){
+                die("Something went wrong <br>" . $e->getMessage());
+            }
+
+            $frequency = array_count_values($hashtags);
+
+           // die();
+            print"<h1> Likes </h1><br>";
+            print "On ".count($res_log)." posts, the frequency in percent was: <br>";
+            foreach($frequency as $k => $v){
+                print (($v / count($hashtags))*100 )."% <b>#$k</b><br>";
+            }
+
+
+
+
+        }
+
+  }
+
+?>

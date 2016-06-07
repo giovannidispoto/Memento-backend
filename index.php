@@ -6,13 +6,14 @@
 //spl_autoload_register('my_autoloader');
 
 require_once("Class/Database.class.php");
+require_once("Class/Analytics.class.php");
 require 'vendor/autoload.php';
 
 use Coreproc\Gcm\GcmClient as GcmClient;
 use Coreproc\Gcm\Classes\Message as Message;
 
 
-define("TESTING", false); //flag testing
+define("TESTING", true); //flag testing
 define("API_KEY", "AIzaSyBET8b8BadEmmjrU2-vV0dXfuT8UhUWLVo");
 define("LIKE", 1);
 define("COMMENT", 2);
@@ -346,7 +347,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                                             $row['notification'] = $row['from'] . " ha iniziato a seguirti";
                                             break;
                                         case MENTION:
-                                            $row['notification'] = $row['from'] . "ti ha mensionato in un commento";
+                                            $row['notification'] = $row['from'] . "ti ha menzionato in un commento";
                                             break;
                                     }
                                     $row['media'] = $db->getMediaFromId($row['media_id']);
@@ -356,6 +357,16 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                             echo json_encode($append);
                         }
                 break;
+
+            case 'get_photo_recommended':
+                                        if(!isset($_GET['page'])) $offset = 0;
+                                        else $offset= intval($_GET['page']);
+
+                                        $analytic = new Analytics($db);
+                                        $photos = $analytic->getPhotosRecommended($_REQUEST['user_id'], $offset);
+                                        if(!empty($photos)) echo json_encode($photos);
+                                        else echo json_encode(array("error" => "photos not found"));
+                                        break;
             default:
                 echo "Your request: " . $_REQUEST['action'] . " for " . $_REQUEST['user_id'];
                 break;

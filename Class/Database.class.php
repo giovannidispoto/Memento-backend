@@ -33,6 +33,10 @@ class Database
         $this->connect(); //crea una istanza di connessione al DB
     }
 
+    public function getConnection(){
+        return $this->handler;
+    }
+
     public function authUser($user_id, $password)
     { //autenticazione
         $user = array(
@@ -636,6 +640,7 @@ class Database
         return boolval($res['ok']);
 
     }
+
 
     public function getNotifications($user_id){
 
