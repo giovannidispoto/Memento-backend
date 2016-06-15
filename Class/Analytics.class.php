@@ -2,6 +2,10 @@
   /*
     Class used for perform analysis over data
   */
+    namespace Memento;
+    use MongoId;
+    use MongoException;
+
   class Analytics{
 
       private $handler;
@@ -12,7 +16,7 @@
 
       }
 
-      private function getFrequencyLikes($user_id){
+      private function getFrequencyLikes(){
             try{
                 $res_log = $this->handler->log->distinct("media_id");
                 foreach($res_log as $media){
@@ -27,15 +31,15 @@
                 die("Something went wrong <br>" . $e->getMessage());
             }
 
-            return array_count_values($hashtags);
+            return @array_count_values($hashtags);
         }
 
         public function getPhotosRecommended($user_id,$offset){
-          $frequency = $this->getFrequencyLikes($user_id);
+          $frequency = $this->getFrequencyLikes();
             foreach($frequency as $k => $v){
 
                 try{
-                    $photos = $this->handler->media->find(array('hashtags' => $k))->skip($offset * self::ELEMENTS);
+                    $photos = $this->handler->media->find(array('user_id.$id' => array('$ne' => $user_id), 'hashtags' => $k));
                 }catch(MongoException $e){
                     die("Something went wrong <br>" . $e->getMessage());
                 }

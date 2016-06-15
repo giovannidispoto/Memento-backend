@@ -7,32 +7,41 @@
 
 require_once("Class/Database.class.php");
 require_once("Class/Analytics.class.php");
+require_once("Class/User.class.php");
+require_once("Class/Medias.class.php");
 require 'vendor/autoload.php';
 
-use Coreproc\Gcm\GcmClient as GcmClient;
-use Coreproc\Gcm\Classes\Message as Message;
+use Coreproc\Gcm\GcmClient;
+use Coreproc\Gcm\Classes\Message;
+use Memento\Database;
+use Memento\User;
+use Memento\Medias;
+use Memento\Analytics;
 
 
-define("TESTING", true); //flag testing
+define("TESTING", false); //flag testing
 define("API_KEY", "AIzaSyBET8b8BadEmmjrU2-vV0dXfuT8UhUWLVo");
 define("LIKE", 1);
 define("COMMENT", 2);
 define("MENTION", 3);
 define("FOLLOW", 4);
+$db = new Database();
 
 if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controllo che sia stato impostato il cookie
 
     if (isset($_GET['action']) && !empty($_GET['action'])) {
-        $db = new Database();
-        $user = (!TESTING) ? $_POST['user_id'] : "test";
+
+
+        $user = new User($db->getConnection());
+        $medias = new Medias($db->getConnection());
+
+        $user_id = (!TESTING) ? $_POST['user_id'] : "test";
         $token = (!TESTING) ? $_POST['token'] : "test";
         $client = new GcmClient(API_KEY);
 
-        if (!$db->checkToken($user, $token) && !TESTING) die(json_encode(array("error" => "Incorrect token"))); //se non esiste nessuna accoppiata token-utente, restituisco l'errore
+        if (!$user->checkToken($user_id, $token) && !TESTING) die(json_encode(array("error" => "Incorrect token"))); //se non esiste nessuna accoppiata token-utente, restituisco l'errore
         switch ($_GET['action']) { //routes URL
             case 'insert_media':
-                // if(isset($_POST['file'])){ //se è impostata la variabile file, passata tramite il form
-                // die(print_r($_POST));
                 $description = $_POST['description'];  //descrizione foto
                 $media_name = uniqid(time()) . ".jpg";  //prendo il nome del file
                 $media_type = $_FILES['file']['type'];
@@ -41,27 +50,27 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 if (!move_uploaded_file($_FILES['file']['tmp_name'], "uploads/$media_name")) { //sposto il file nella dir dei media
                     die('Error uploading file - check destination is writeable.');
                 }
+                $hashtags_mentions = (isset($_POST['hashtags_mentions']))?$_POST['hashtags_mentions']:null;
                 $path = $media_name;
-                $tmp = explode(" ", $description);
+                //$tmp = explode(" ", $description); //isolo le parole
                 //die(print_r($tmp));
-                $elements = preg_grep("/^#/", $tmp);
-                $hashtags = array();
-                foreach ($elements as $element) {
-                    $hashtags[] = substr($element, 1);
+                if(!empty($hashtags_mentions)){
+                    $hashtags_to_strip = preg_grep("/^#/", $hashtags_mentions); //estraggo tutti gli hashtag
+                    $metions = preg_grep("/^@/", $hashtags_mentions);
+                    foreach ($hashtags_to_strip as $hashtag) {
+                        $hashtags[] = substr($hashtag, 1);
+                    }
                 }
-                $res = $db->insertMedia($path, $description, $hashtags, $user); //inserisco il file
+                if(!isset($hashtags)) $hashtags = array();
+                $res = $medias->insertMedia($path, $description, $hashtags, $user_id); //inserisco il file
                 echo json_encode(array("success" => true));
 
-
-                //  }else{//se il file non è impostato, mostro il form di invio dei file
-                //    echo json_encode(array("success" => false));
-                //}
                 break;
 
             case "check":
                 $user = $_REQUEST['user'];
                 $id = $_REQUEST['id'];
-                $res = $db->checkPrivileges($user, $id);
+                $res = $user->checkPrivileges($user_id, $id);
                 echo json_encode(array("privileges" => $res));
                 break;
 
@@ -70,18 +79,18 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 //$username = htmlspecialchars($_POST['user_id'], ENT_QUOTES, 'utf-8');
                 if (isset($_REQUEST['username']) && !empty($_REQUEST['username'])) {
                     $username = htmlspecialchars($_REQUEST['username'], ENT_QUOTES, 'utf-8');
-                    $res = $db->getUserProfile($username); //ottengo il profilo dell'utente
+                    $res = $user->getUserProfile($username); //ottengo il profilo dell'utente
                     $medias = array();
                     foreach ($res as $element) {
                         $medias[] = $element; //inserisco le foto in un array
                     }
                     $response = array(
-                        "avatar" => $db->getAvatar($username),
-                        "following" => $db->getFollowing($username),
-                        "followers" => $db->getFollowers($username),
+                        "avatar" => $user->getAvatar($username),
+                        "following" => $user->getFollowing($username),
+                        "followers" => $user->getFollowers($username),
 
                     );
-                    if ($username != $user) $response["is_following"] = $db->isFollowing($user, $username);
+                    if ($username != $user) $response["is_following"] = $user->isFollowing($user_id, $username);
                     //print_r($res);
                     if (count($medias) > 0) {
                         $response["photos"] = $medias; //inserisco le foto, nel caso ci siano
@@ -97,7 +106,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 if (isset($_REQUEST['hashtag']) && !empty($_REQUEST["hashtag"])) {
 
                     $hashtag = htmlspecialchars($_REQUEST['hashtag'], ENT_QUOTES, "utf-8");
-                    $res = $db->getMediaByHashtag($hashtag); //ottengo le foto che hanno l'hashtag richiesto
+                    $res = $medias->getMediaByHashtag($hashtag); //ottengo le foto che hanno l'hashtag richiesto
                     if ($res != null) {
                         echo json_encode($res);
                     } else
@@ -110,7 +119,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 if (isset($_REQUEST['hashtag']) && !empty($_REQUEST["hashtag"])) {
 
                     $hashtag = htmlspecialchars($_REQUEST['hashtag'], ENT_QUOTES, "utf-8");
-                    $res = $db->getHashtagList($hashtag); //ottengo le foto che hanno l'hashtag richiesto
+                    $res = $medias->getHashtagList($hashtag); //ottengo le foto che hanno l'hashtag richiesto
                     //die(print_r($res));
                     if ($res != null) {
                         //print_r($res);
@@ -148,12 +157,12 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     }
                     $avatar = $media_name;
                 } else {
-                    $avatar = $db->getAvatar($user);
+                    $avatar = $user->getAvatar($user_id);
                 }
 
 
                 // if($db->checkUsername($user) or die("Error") or die("Error")) { //controllo che l'email o lo username non sia già presente nel db
-                $res = $db->updateProfile($avatar, $name, $surname, $e_mail, $user, $date_of_birth);
+                $res = $user->updateProfile($avatar, $name, $surname, $e_mail, $user_id, $date_of_birth);
                 echo json_encode(array("success" => $res));
 
                 //   }
@@ -161,11 +170,11 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
 
             case 'get_photo': //get_photos
                 // die(print_r($_POST));
-                $res = $db->getHomeMedia($_POST['user_id']); //ottengo i media per la home page
+                $res = $medias->getHomeMedia($_REQUEST['user_id']); //ottengo i media per la home page
                 // $res = array("action" => "getting photo");
                 foreach ($res as $element) {
                     // die($db->getAvatar($element['user_id'][0]['$id']));
-                    $element['avatar'] = $db->getAvatar($element['user_id'][0]['$id']); //inserisco l'avatar dell'utente
+                    $element['avatar'] = $user->getAvatar($element['user_id'][0]['$id']); //inserisco l'avatar dell'utente
                     $photos[] = $element;
                 }
                 //   echo count($photos);
@@ -178,12 +187,12 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     $action = (intval($_POST['action']) == 1) ? true : false;
                     $user_to_act = htmlspecialchars($_POST['user_to_act']);
                     if ($action) {
-                        $db->startFollow($user, $user_to_act);
-                        $tokens = $db->retreiveToken($user_to_act);
-                        (count($tokens) == 0)? $db->appendNotification($user, $user_to_act, 4) : sendNotification($client, $tokens, "Memento", "$user ha iniziato a seguirti");
-                        $db->insertNotification($user_to_act, $user, "$user ha iniziarto a seguirti");
+                        $user->startFollow($user, $user_to_act);
+                        $tokens = $user->retreiveToken($user_to_act);
+                        (count($tokens) == 0)? $user->appendNotification($user, $user_to_act, 4) : sendNotification($client, $tokens, "Memento", "$user_id ha iniziato a seguirti");
+                        $user->insertNotification($user_to_act, $user_id, "$user ha iniziarto a seguirti");
                     } else {
-                        $db->stopFollow($_POST['user_id'], $_POST['user_to_act']);
+                        $user->stopFollow($_POST['user_id'], $_POST['user_to_act']);
                     }
                     // echo json_encode(array("success" => $res));
                 }
@@ -192,28 +201,28 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
 
             case 'insert_like':
                 if (isset($_REQUEST['media_id'])) {
-                    $res = $db->insertLike($user, $_REQUEST['media_id']); //inserisco like ad un media
+                    $res = $medias->insertLike($user_id, $_REQUEST['media_id']); //inserisco like ad un media
                     echo json_encode(array("success" => $res));
-                    $user_to_act = getUserFromPhoto($db->getPhotoDetails($_REQUEST['media_id']));
+                    $user_to_act = getUserFromPhoto($medias->getPhotoDetails($_REQUEST['media_id']));
                     $tokens = $db->retreiveToken($user_to_act);
-                    (count($tokens) > 0) ? sendNotification($client, $tokens, "Memento", "A $user piace la tua foto") : $db->appendNotification($user, $user_to_act, 1);
-                    $db->insertNotification($user_to_act, $user, LIKE , $_REQUEST['media_id']);
-                    $db->logUser($user, time(), $_REQUEST['media_id']);
+                    (count($tokens) > 0) ? sendNotification($client, $tokens, "Memento", "A $user piace la tua foto") : $user->appendNotification($user_id, $user_to_act, 1);
+                    $user->insertNotification($user_to_act, $user_id, LIKE , $_REQUEST['media_id']);
+                    $user->logUser($user, time(), $_REQUEST['media_id']);
                 }
 
                 break;
 
             case 'remove_like':
                 if (isset($_REQUEST['media_id'])) {
-                    $res = $db->removeLike($user, $_REQUEST['media_id']); //rimuovo il like da un media
-                    $to = getUserFromPhoto($db->getPhotoDetails($_REQUEST['media_id']));
+                    $res = $medias->removeLike($user_id, $_REQUEST['media_id']); //rimuovo il like da un media
+                    $to = getUserFromPhoto($medias->getPhotoDetails($_REQUEST['media_id']));
                     echo json_encode(array("success" => $res));
-                    $db->removeNotification($to, $user , $_REQUEST['media_id'], LIKE);
+                    $user->removeNotification($to, $user_id , $_REQUEST['media_id'], LIKE);
                 }
                 break;
             case 'get_photo_details':
                 $photo_id = $_REQUEST['media_id'];
-                $res = $db->getPhotoDetails($photo_id); //ottengo la foto che si vuole visualizzare
+                $res = $medias->getPhotoDetails($photo_id); //ottengo la foto che si vuole visualizzare
                 $user_id = getUserFromPhoto($res);
                 $media;
                 foreach ($res as $k => $v) {
@@ -221,7 +230,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 }
                 if (isset($media['comments'])) {
                     foreach ($media['comments'] as &$comment) {
-                        $comment['avatar'] = $db->getAvatar($comment['user_id']);
+                        $comment['avatar'] = $user->getAvatar($comment['user_id']);
                     }
                 }
                 /*   if(isset($media['likes'])){
@@ -233,7 +242,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 //die(print_r($media['comments']));
                 $response = array(
                     "user_id" => $user_id, //inserisco il nome utente
-                    "avatar" => $db->getAvatar($user_id), //inserisco l'avatar
+                    "avatar" => $user->getAvatar($user_id), //inserisco l'avatar
                     "photo" => $media //inserisco la foto
                 );
 
@@ -245,13 +254,13 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 if (isset($_POST['comment']) && isset($_POST['media_id'])) {
                     $comment = $_POST['comment'];
                     $media_id = $_POST['media_id'];
-                    $res = $db->insertComment($user, $comment, $media_id); //inserisco commento
-                    $id = getUserFromPhoto($db->getPhotoDetails($media_id));
-                    $tokens = $db->retreiveToken($id);
-                    (count($token) == 0) ? $db->appendNotification($user, $user_to_act, 2) : sendNotification($client, $tokens, "Memento", "$user ha commentato la tua foto");
+                    $res = $medias->insertComment($user_id, $comment, $media_id); //inserisco commento
+                    $id = getUserFromPhoto($medias->getPhotoDetails($media_id));
+                    $tokens = $user->retreiveToken($id);
+                    (count($token) == 0) ? $user->appendNotification($user, $user_to_act, 2) : sendNotification($client, $tokens, "Memento", "$user_id ha commentato la tua foto");
 
-                    $db->insertNotification($id, $user, LIKE , $media_id);
-                    $db->logUser($user, time(), $media_id);
+                    $user->insertNotification($id, $user_id, LIKE , $media_id);
+                    $user->logUser($user_id, time(), $media_id);
                 } else {
                     $res = false;
                 }
@@ -263,7 +272,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
             case 'drop_media':
                 if (isset($_POST['media_id']) && !empty($_POST['media_id'])) {
                     $media_id = htmlspecialchars($_POST['media_id'], ENT_QUOTES, 'utf-8');
-                    $res = $db->dropMedia($media_id);
+                    $res = $medias->dropMedia($media_id);
                     echo json_encode(array("success" => $res));
                 }
 
@@ -274,10 +283,10 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     $old_pssw = $_POST['old_pssw'];
                     $new_pssw = $_POST['new_pssw'];
 
-                    $res = $db->authUser(user, $old_pssw);
+                    $res = $user->authUser($user_id, $old_pssw);
 
                     if ($res) {
-                        $change = $db->changePassw($user, $new_pssw);
+                        $change = $user->changePassw($user_id, $new_pssw);
                         echo json_encode(array("success" => $change));
                     } else {
                         echo json_encode(array("error" => "error with privileges"));
@@ -289,7 +298,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
             case 'get_user_list':
                 if (isset($_REQUEST['user']) && !empty($_REQUEST['user'])) {
                     $username = htmlspecialchars($_REQUEST['user'], ENT_QUOTES, 'UTF-8');
-                    $res = $db->getUserList($username);
+                    $res = $user->getUserList($username);
                     if (!empty($res)) echo json_encode($res);
                     else echo json_encode(array("error" => "nothing was found"));
                 }
@@ -298,13 +307,13 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
 
             case 'get_info_profile':
                 if (isset($user)) {
-                    $res = $db->getInfoProfile($_REQUEST['user_id'], true);
+                    $res = $user->getInfoProfile($_REQUEST['user_id'], true);
                     echo json_encode($res);
                 }
                 break;
             case 'get_sessions':
                 //$user = $_REQUEST['user'];
-                $response = $db->getSessions($user);
+                $response = $user->getSessions($user_id);
 
                 if ($response == null) echo json_encode(array("success" => "false"));
                 else echo json_encode($response);
@@ -312,22 +321,22 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
             case 'destroy_session':
                 $token_gcm = htmlspecialchars($_POST['token_gcm'], ENT_QUOTES);
                 if (isset($_POST['token_del'])) $session_to_del = $_POST['token_del'];
-                $res = $db->closeSession($user, (!isset($session_to_del)) ? $token : $session_to_del);
-                $db->unsetGCMToken($user, $token_gcm);
+                $res = $user->closeSession($user_id, (!isset($session_to_del)) ? $token : $session_to_del);
+                $user->unsetGCMToken($user_id, $token_gcm);
                 echo json_encode(array("success" => $res));
 
                 break;
             case 'register_token_notification':
                 if (isset($_POST['token_register'])) {
                     $token_client = htmlspecialchars($_POST['token_register'], ENT_QUOTES);
-                    $db->registerTokenNotification($user, $token, $token_client);
-                    $notifications = $db->getAppendedNotifications($user);
+                    $user->registerTokenNotification($user_id, $token, $token_client);
+                    $notifications = $user->getAppendedNotifications($user_id);
                     sendNotifications($client, array($token_client), $notifications);
 
                 }
                 break;
             case 'get_notifications':
-                        $notifications = $db->getNotifications($user);
+                        $notifications = $user->getNotifications($user_id);
                         if($notifications == null){
                             echo json_encode(array("error" => "notifications not found"));
 
@@ -335,7 +344,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                             //die(print_r($notifications));
                             foreach ($notifications as $notification) {
                                 foreach ($notification['notifications'] as $row) {
-                                    $row['avatar'] = $db->getAvatar($row['from']);
+                                    $row['avatar'] = $user->getAvatar($row['from']);
                                     switch ($row['notification']) {
                                         case LIKE:
                                             $row['notification'] = "A " . $row['from'] . " piace la tua foto";
@@ -350,7 +359,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                                             $row['notification'] = $row['from'] . "ti ha menzionato in un commento";
                                             break;
                                     }
-                                    $row['media'] = $db->getMediaFromId($row['media_id']);
+                                    $row['media'] = $medias->getMediaFromId($row['media_id']);
                                     $append[] = $row;
                                 }
                             }
@@ -382,23 +391,25 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
     if (isset($_REQUEST['username']) && !empty($_REQUEST['username'])) {
         if (isset($_GET['action'])) {
 
-            $db = new Database();
+            $user = new User($db->getConnection());
+
 
             switch ($_GET['action']) {
                 case "auth":
                     $username = htmlspecialchars($_REQUEST['username'], ENT_QUOTES, 'utf-8'); //trasformo tutti i caratteri in caratteri html per evitare attacchi ti ogni genere
                     $password = htmlspecialchars($_POST['password'], ENT_QUOTES, 'utf-8');
-                    $res = $db->authUser($username, $password);
+                    $res = $user->authUser($username, $password);
 
                     if (!$res) die(json_encode(array("success" => false, "error" => "User not found")));
 
                     $token = sha1(uniqid($username));
                     $ip = $_SERVER['REMOTE_ADDR'];
-                    $db->registerSession($username, $token, time(), $ip);
+                    $user->registerSession($username, $token, time(), $ip);
                     $rs = array(
                         "success" => true,
                         "user_id" => $username,
-                        "token" => $token
+                        "token" => $token,
+                        "avatar" => $user->getAvatar($username),
                     );
 
                     echo json_encode($rs);
@@ -406,8 +417,8 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
 
 
                 case "check_username":
-                    $user = htmlspecialchars($_REQUEST['username'], ENT_QUOTES, 'utf-8');
-                    $res = $db->checkUsername($user);
+                    $user_id = htmlspecialchars($_REQUEST['username'], ENT_QUOTES, 'utf-8');
+                    $res = $user->checkUsername($user_id);
                     echo json_encode(array("success" => $res));
 
                     break;
@@ -421,8 +432,8 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     $password = htmlspecialchars($_POST['password'], ENT_QUOTES, 'utf-8');
                     $date_of_birth = htmlspecialchars($_POST['date_of_birth'], ENT_QUOTES, 'utf-8');
                     $sex = htmlspecialchars($_POST['sex'], ENT_QUOTES, 'utf-8');
-                    if ($db->checkUsername($username) or die("Error") or die("Error")) { //controllo che l'email o lo username non sia già presente nel db
-                        $res = $db->createUser("null", $name, $surname, $e_mail, $username, $password, $date_of_birth, $sex);
+                    if ($user->checkUsername($username) or die("Error") or die("Error")) { //controllo che l'email o lo username non sia già presente nel db
+                        $res = $user->createUser("null", $name, $surname, $e_mail, $username, $password, $date_of_birth, $sex);
 
                         if (!$res)
                             die("An error occured while creating user account");
@@ -454,19 +465,19 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
 function getUserFromPhoto($photo)
 {
 
-    $user = $photo['user_id'][0]['$id'];
+    $user_id = $photo['user_id'][0]['$id'];
 
 
-    return $user;
+    return $user_id;
 }
 
 function sendNotification($client, $reg_id, $title, $body)
 {
 
-    foreach ($reg_id as $id) {
-        $message = new Message($client);
-        $message->addRegistrationId($id);
-        $message->setData([
+    foreach ($reg_id as $id) { //per ogni id presente nel DB
+        $message = new Message($client); //creo il nuono messaggio
+        $message->addRegistrationId($id); //aggiungo l'id del dispositivo
+        $message->setData([ //aggiungo i dati
             'title' => $title,
             'message' => $body
         ]);
