@@ -204,10 +204,10 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     $res = $medias->insertLike($user_id, $_REQUEST['media_id']); //inserisco like ad un media
                     echo json_encode(array("success" => $res));
                     $user_to_act = getUserFromPhoto($medias->getPhotoDetails($_REQUEST['media_id']));
-                    $tokens = $db->retreiveToken($user_to_act);
-                    (count($tokens) > 0) ? sendNotification($client, $tokens, "Memento", "A $user piace la tua foto") : $user->appendNotification($user_id, $user_to_act, 1);
+                    $tokens = $user->retreiveToken($user_to_act);
+                    (count($tokens) > 0) ? sendNotification($client, $tokens, "Memento", "A $user_id piace la tua foto") : $user->appendNotification($user_id, $user_to_act, 1);
                     $user->insertNotification($user_to_act, $user_id, LIKE , $_REQUEST['media_id']);
-                    $user->logUser($user, time(), $_REQUEST['media_id']);
+                    $user->logUser($user_id, time(), $_REQUEST['media_id']);
                 }
 
                 break;

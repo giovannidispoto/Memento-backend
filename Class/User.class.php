@@ -4,6 +4,7 @@
 namespace Memento;
 use MongoException;
 use MongoDBRef;
+use MongoRegex;
 
 
 class User
