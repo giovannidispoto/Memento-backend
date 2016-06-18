@@ -5,6 +5,8 @@ namespace Memento;
 use MongoException;
 use MongoDBRef;
 use MongoRegex;
+use MongoId;
+use MongoTimestamp;
 
 
 class User
@@ -347,7 +349,7 @@ class User
     public function insertNotification($user_id, $from, $notification, $media_id = null)
     {
         try {
-            $res = $this->handler->usersNotifications->update(array("_id" => $user_id), array('$push' => array("notifications" => array("media_id" => $media_id, "notification" => $notification, "from" => $from))), array('upsert' => true));
+            $res = $this->handler->usersNotifications->update(array("_id" => $user_id), array('$push' => array("notifications" => array("media_id" => new MongoId($media_id), "notification" => $notification, "from" => $from, "time" => time()))), array('upsert' => true));
         } catch (MongoException $e) {
             die("Something went wrong <br>" . $e->getMessage());
         }
@@ -358,7 +360,8 @@ class User
     public function removeNotification($user_id, $from, $media_id = null, $type)
     {
         try {
-            $res = $this->handler->usersNotifications->update(array("_id" => $user_id), array('$pull' => array("notifications" => array("media_id" => $media_id, "notification" => $type, "from" => $from))), array("multi" => true));
+            $res = $this->handler->usersNotifications->update(array("_id" => $user_id), array('$pull' => array("notifications" => array("media_id" => new MongoId($media_id), "notification" => $type, "from" => $from))), array("multi" => true));
+
         } catch (MongoException $e) {
             die("Something went wrong <br>" . $e->getMessage());
         }
@@ -389,19 +392,24 @@ class User
     {
 
         try {
-            $res = $this->handler->usersNotifications->find(array("_id" => $user_id))->limit(self::LIMIT);
+            //$res = $this->handler->usersNotifications->find(array("_id" => $user_id))->sort(array("notifications.time" => 1))->limit(self::LIMIT);
+            $res = $this->handler->usersNotifications->aggregate(
+                array('$unwind' => '$notifications'),
+                array('$sort' => array("notifications.time" => -1))
+            );
         } catch (MongoException $e) {
             die("Something went wrong <br>" . $e->getMessage());
         }
+
 
         foreach ($res as $row) {
             $notifications[] = $row;
         }
 
-        //die(print_r($notifications));
+       // die(print_r($notifications));
 
 
-        return (isset($notifications)) ? $notifications : null;
+        return (isset($notifications)) ? $notifications[0] : null;
     }
 
     public function checkEmail($email)

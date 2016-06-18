@@ -34,7 +34,7 @@
             return @array_count_values($hashtags);
         }
 
-        public function getPhotosRecommended($user_id,$offset){
+        public function getPhotoRec($user_id, $offset){
           $frequency = $this->getFrequencyLikes();
             foreach($frequency as $k => $v){
 

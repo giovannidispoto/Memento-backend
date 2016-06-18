@@ -255,12 +255,28 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     $comment = $_POST['comment'];
                     $media_id = $_POST['media_id'];
                     $res = $medias->insertComment($user_id, $comment, $media_id); //inserisco commento
+                    $values = explode(" ", $comment);
+                    $mentions = preg_grep("/^@/", $values);
                     $id = getUserFromPhoto($medias->getPhotoDetails($media_id));
                     $tokens = $user->retreiveToken($id);
-                    (count($token) == 0) ? $user->appendNotification($user, $user_to_act, 2) : sendNotification($client, $tokens, "Memento", "$user_id ha commentato la tua foto");
+                    if(count($token) == 0){
+                        $user->appendNotification($user, $user_to_act, COMMENT);
+                        foreach($mentions as $user_to_act){
+                            $user->appendNotification($user_id, substr($user_to_act,1), MENTION);
+                        }
+                        $user->insertNotification($id, $user_id, COMMENT, $media_id);
+                    }else {
+                        sendNotification($client, $tokens, "Memento", "$user_id ha commentato la tua foto");
+                        foreach($mentions as $user_to_act){
+                            sendNotification($client, $tokens, "Memento", "$user_id ti ha menzionato in un commento");
+                            $user->insertNotification(substr($user_to_act,1), $user_id, MENTION, $media_id);
+                        }
+                        $user->insertNotification($id, $user_id, COMMENT, $media_id);
+                    }
 
                     $user->insertNotification($id, $user_id, LIKE , $media_id);
                     $user->logUser($user_id, time(), $media_id);
+
                 } else {
                     $res = false;
                 }
@@ -342,7 +358,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
 
                         }else {
                             //die(print_r($notifications));
-                            foreach ($notifications as $notification) {
+                          /* foreach ($notifications as $notification) {
                                 foreach ($notification['notifications'] as $row) {
                                     $row['avatar'] = $user->getAvatar($row['from']);
                                     switch ($row['notification']) {
@@ -362,6 +378,32 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                                     $row['media'] = $medias->getMediaFromId($row['media_id']);
                                     $append[] = $row;
                                 }
+                            }*/
+
+                          //  var_dump($notifications);
+
+                            foreach($notifications as $notification){
+
+
+                                $row['avatar'] = $user->getAvatar($notification['notifications']['from']);
+                                $row['from'] = $notification['notifications']['from'];
+                                $row['media_id'] = $notification['notifications']['media_id'];
+                                switch ($notification['notifications']['notification']) {
+                                    case LIKE:
+                                        $row['notification'] = "A " . $row['from'] . " piace la tua foto";
+                                        break;
+                                    case COMMENT:
+                                        $row['notification'] = $row['from'] . " ha commentato la tua foto";
+                                        break;
+                                    case FOLLOW:
+                                        $row['notification'] = $row['from'] . " ha iniziato a seguirti";
+                                        break;
+                                    case MENTION:
+                                        $row['notification'] = $row['from'] . " ti ha menzionato in un commento";
+                                        break;
+                                }
+                                $row['media'] = $medias->getMediaFromId($row['media_id']);
+                                $append[] = $row;
                             }
                             echo json_encode($append);
                         }
