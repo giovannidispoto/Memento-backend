@@ -414,7 +414,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                                         else $offset= intval($_GET['page']);
 
                                         $analytic = new Analytics($db);
-                                        $photos = $analytic->getPhotosRecommended($_REQUEST['user_id'], $offset);
+                                        $photos = $analytic->getPhotoRec($_REQUEST['user_id'], $offset);
                                         if(!empty($photos)) echo json_encode($photos);
                                         else echo json_encode(array("error" => "photos not found"));
                                         break;
