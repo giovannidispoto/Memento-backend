@@ -81,10 +81,7 @@ class Medias{
             {
                 try {
                     $res = $this->handler->media->aggregate(array(
-                            //array('$match' => array('hashtags' => '/ci/')),
                             array('$unwind' => '$hashtags'),
-                            //array('$match' =>  array('hashtags' => '/ci/')),
-                            //array('$match' => array('hashtags' => array('$regex' => '//'))),
                             array('$group' => array("_id" => '$hashtags'))
 
                         )
@@ -112,13 +109,12 @@ class Medias{
                 return boolval($res['ok']);
             }
 
-            public function getHomeMedia($user)
+            public function getHomeMedia($user) //foto home relativa ad un utente
               {
 
                   try {
                       $res_ = $this->handler->users->find(array('_id' => $user), array("following" => 1));
 
-                      //die(print_r($res_['following']));
                       foreach ($res_ as $element) {
                           $users = $element['following'];
                       }

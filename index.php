@@ -175,6 +175,18 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 foreach ($res as $element) {
                     // die($db->getAvatar($element['user_id'][0]['$id']));
                     $element['avatar'] = $user->getAvatar($element['user_id'][0]['$id']); //inserisco l'avatar dell'utente
+                if(isset($element['likes'])){
+                        foreach($element['likes'] as $like){
+                            $likes[] = array(
+                                "user" => $like,
+                                "avatar" => $user->getAvatar($like)
+                            );
+                        }
+                    $element['likes'] = $likes;
+            }
+
+                            //var_dump($element['likes']);
+
                     $photos[] = $element;
                 }
                 //   echo count($photos);
@@ -189,6 +201,7 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                     if ($action) {
                         $user->startFollow($user, $user_to_act);
                         $tokens = $user->retreiveToken($user_to_act);
+                        //se ci sono sessioni GCM registrate, invio la notifica, altrimenti lo appendo nelle notifiche in uscita
                         (count($tokens) == 0)? $user->appendNotification($user, $user_to_act, 4) : sendNotification($client, $tokens, "Memento", "$user_id ha iniziato a seguirti");
                         $user->insertNotification($user_to_act, $user_id, "$user ha iniziarto a seguirti");
                     } else {
@@ -335,10 +348,10 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                 else echo json_encode($response);
                 break;
             case 'destroy_session':
-                $token_gcm = htmlspecialchars($_POST['token_gcm'], ENT_QUOTES);
+                //$token_gcm = htmlspecialchars($_POST['token_gcm'], ENT_QUOTES);
                 if (isset($_POST['token_del'])) $session_to_del = $_POST['token_del'];
                 $res = $user->closeSession($user_id, (!isset($session_to_del)) ? $token : $session_to_del);
-                $user->unsetGCMToken($user_id, $token_gcm);
+                //$user->unsetGCMToken($user_id, $token_gcm);
                 echo json_encode(array("success" => $res));
 
                 break;
@@ -517,7 +530,7 @@ function sendNotification($client, $reg_id, $title, $body)
 {
 
     foreach ($reg_id as $id) { //per ogni id presente nel DB
-        $message = new Message($client); //creo il nuono messaggio
+        $message = new Message($client); //creo il nuovo messaggio
         $message->addRegistrationId($id); //aggiungo l'id del dispositivo
         $message->setData([ //aggiungo i dati
             'title' => $title,
