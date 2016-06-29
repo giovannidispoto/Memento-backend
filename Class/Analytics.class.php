@@ -16,10 +16,23 @@
 
       }
 
-      private function getFrequencyLikes(){
+      private function getFrequencyLikes($user_id){
             try{
-                $res_log = $this->handler->log->distinct("media_id");
-                foreach($res_log as $media){
+                $res_log = $this->handler->usersNotifications->findOne(array("_id" => $user_id));
+
+
+
+                $medias = $res_log['notifications'];
+
+
+
+              foreach($medias as $media){
+                $data[] = $media['media_id'];
+              }
+
+              $data = array_unique($data);
+
+                foreach($data as $media){
 
                     $rs = $this->handler->media->distinct("hashtags", array("_id" => new MongoId($media)));
                     foreach($rs as $element){
@@ -35,7 +48,8 @@
         }
 
         public function getPhotoRec($user_id, $offset){
-          $frequency = $this->getFrequencyLikes();
+          $frequency = $this->getFrequencyLikes($user_id);
+
             foreach($frequency as $k => $v){
 
                 try{

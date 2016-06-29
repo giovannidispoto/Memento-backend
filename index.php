@@ -246,6 +246,17 @@ if ((isset($_POST['token']) && isset($_POST['user_id'])) || TESTING) {//controll
                         $comment['avatar'] = $user->getAvatar($comment['user_id']);
                     }
                 }
+
+                if (isset($media['likes'])) {
+                    foreach ($media['likes'] as $like) {
+                        $likes[] = array(
+                            "avatar" => $user->getAvatar($like),
+                            "user_id" => $like
+                        );
+
+                    }
+                    $media['likes'] = $likes;
+                }
                 /*   if(isset($media['likes'])){
                         foreach($media['likes'] as &$like){
                             $like['avatar'] = $db->getAvatar($like)
