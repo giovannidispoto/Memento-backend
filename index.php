@@ -20,7 +20,7 @@ use Memento\Analytics;
 
 
 define("TESTING", false); //flag testing
-define("API_KEY", "AIzaSyBET8b8BadEmmjrU2-vV0dXfuT8UhUWLVo");
+define("API_KEY", "xxxxxxxxx");
 define("LIKE", 1);
 define("COMMENT", 2);
 define("MENTION", 3);
